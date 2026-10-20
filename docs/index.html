@@ -288,7 +288,7 @@ input[type="range"] { width: 100%; accent-color: var(--brass); }
       ctx = new (window.AudioContext || window.webkitAudioContext)();
       analyser = ctx.createAnalyser();
       analyser.fftSize = 4096;
-      analyser.smoothingTimeConstant = 0.72;
+      analyser.smoothingTimeConstant = 0.8;
       freqData = new Uint8Array(analyser.frequencyBinCount);
       timeData = new Float32Array(analyser.fftSize);
     }
@@ -447,7 +447,8 @@ input[type="range"] { width: 100%; accent-color: var(--brass); }
       let v = (s / (b - a)) / 255;
       v = Math.max(0, v - 0.04) / 0.96;           // small noise gate so silence stays flat
       v *= 1 + (i / RINGS) * 1.4;               // lift the naturally quieter highs
-      energy[i] += (Math.min(v, 1.2) - energy[i]) * 0.35;
+      const target = Math.min(v, 1.2);
+      energy[i] += (target - energy[i]) * (target > energy[i] ? 0.6 : 0.05);   // fast rise, slow fall
       if (v > best) { best = v; bestI = i; }
     }
     let rms = 0; for (let k = 0; k < timeData.length; k++) rms += timeData[k] * timeData[k];
@@ -533,7 +534,7 @@ input[type="range"] { width: 100%; accent-color: var(--brass); }
       vertexColors: true, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending, depthWrite: false
     }));
     record.add(line);
-    rings.push({ line, pos, col, base, r: 0.36 + t * 0.64, offset: (i * 397) % 1500 });
+    rings.push({ line, pos, col, base, r: 0.36 + t * 0.64, offset: (i * 397) % 1500, h: new Float32Array(PTS) });
   }
 
   // tonearm: bolted to the plinth (not the record), stylus resting in an outer groove
@@ -610,7 +611,7 @@ input[type="range"] { width: 100%; accent-color: var(--brass); }
       ro = readBands();
     } else {
       // no input: grooves settle flat, like the original patch
-      for (let i = 0; i < RINGS; i++) energy[i] *= 0.85;
+      for (let i = 0; i < RINGS; i++) energy[i] *= 0.95;
       wave = idleWave;                            // all zeros
     }
 
@@ -621,7 +622,9 @@ input[type="range"] { width: 100%; accent-color: var(--brass); }
         const a = (j / PTS) * Math.PI * 2;
         const w = (wave[(R.offset + j * step) % wave.length] || 0) * Math.pow(Math.sin(Math.PI * j / PTS), 0.35);
         const r = R.r + e * 0.012 * w;
-        const y = e * (0.025 + 0.16 * w);
+        const yNow = e * (0.06 + 0.42 * w);
+        // peak hold: new peaks jump up at once, then sink back slowly
+        const y = R.h[j] = yNow > R.h[j] ? yNow : R.h[j] * 0.955 + yNow * 0.045;
         R.pos[j * 3] = Math.cos(a) * r;
         R.pos[j * 3 + 1] = Math.max(-0.004, y);
         R.pos[j * 3 + 2] = Math.sin(a) * r;
