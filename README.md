@@ -21,7 +21,7 @@ It works the same way as the Max patch: each moment's spectrum is written into t
 **Features**
 
 - 3D turntable with a graphite base, metal platter and a tonearm mounted on the base
-- Mini display on the base showing the input type, track title, artist, album art, progress and live level bars
+- Display set flat into the base, showing the input type, album art and track name
 - Apple Music style Now Playing bar with album art and title/artist read from MP3, FLAC and M4A files, a scrubber and volume
 - Platter speed (Hold, 16⅔, 33⅓, 45, 78 rpm), wave height and zoom controls
 - Drag to rotate; scroll, pinch or use the slider to zoom

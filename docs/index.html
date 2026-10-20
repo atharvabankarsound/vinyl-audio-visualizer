@@ -495,9 +495,9 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); ou
     const img = $("artImg");
     if (meta.art) {
       player.artUrl = URL.createObjectURL(meta.art);
-      img.src = player.artUrl; img.hidden = false; $("artPh").hidden = true;
+      img.src = player.artUrl; img.hidden = false; $("artPh").toggleAttribute("hidden", true);
     } else {
-      img.removeAttribute("src"); img.hidden = true; $("artPh").hidden = false;
+      img.removeAttribute("src"); img.hidden = true; $("artPh").toggleAttribute("hidden", false);
     }
     try {
       if ("mediaSession" in navigator) {
@@ -510,7 +510,8 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); ou
   }
 
   function setPlayBtn(playing) {
-    $("icoPause").hidden = !playing; $("icoPlay").hidden = playing;
+    // SVG elements ignore the .hidden property, so set the attribute directly
+    $("icoPause").toggleAttribute("hidden", !playing); $("icoPlay").toggleAttribute("hidden", playing);
     $("btnPlay").setAttribute("aria-label", playing ? "Pause" : "Play");
   }
   function togglePlay() {
@@ -859,52 +860,43 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); ou
   const rest = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.02, 0.12, 12), graphite);
   rest.position.set(1.58, PLINTH_TOP + 0.062, 0.58); scene.add(rest);
 
-  // ---------- Mini display on the front-left corner of the base (opposite the tonearm) ----------
-  const SCR_W = 0.64, SCR_H = 0.4, SCR_BEV = 0.012, SCR_D = 0.03;
+  // ---------- Mini display set flat into the front-left corner of the base (opposite the tonearm) ----------
   const scrCanvas = document.createElement("canvas"); scrCanvas.width = 1000; scrCanvas.height = 600;
   const sg = scrCanvas.getContext("2d");
   const scrTex = new THREE.CanvasTexture(scrCanvas);
   scrTex.anisotropy = renderer.capabilities.getMaxAnisotropy();
 
-  const screenPivot = new THREE.Group();
-  screenPivot.position.set(-1.0, PLINTH_TOP + SCR_BEV + 0.004, 1.06);
-  screenPivot.rotation.order = "YXZ";
-  screenPivot.rotation.y = -0.35;           // turned slightly toward the corner
-  screenPivot.rotation.x = -0.42;           // leaning back like a desk display
-  scene.add(screenPivot);
+  function roundedRectShape(w, h, r) {
+    const sh = new THREE.Shape(), x = -w / 2, y = -h / 2;
+    sh.moveTo(x + r, y); sh.lineTo(x + w - r, y); sh.quadraticCurveTo(x + w, y, x + w, y + r);
+    sh.lineTo(x + w, y + h - r); sh.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+    sh.lineTo(x + r, y + h); sh.quadraticCurveTo(x, y + h, x, y + h - r);
+    sh.lineTo(x, y + r); sh.quadraticCurveTo(x, y, x + r, y);
+    return sh;
+  }
+  const SCR_GLASS_W = 0.5, SCR_GLASS_H = SCR_GLASS_W * 0.6;     // same 5:3 shape as the canvas
+  const screenMount = new THREE.Group();
+  screenMount.position.set(-1.0, PLINTH_TOP, 1.1);
+  screenMount.rotation.x = -Math.PI / 2;                          // lie flat; text reads from the front
+  scene.add(screenMount);
 
-  const bs = new THREE.Shape(), bw = SCR_W / 2, bh = SCR_H, br = 0.035;
-  bs.moveTo(-bw + br, 0); bs.lineTo(bw - br, 0); bs.quadraticCurveTo(bw, 0, bw, br);
-  bs.lineTo(bw, bh - br); bs.quadraticCurveTo(bw, bh, bw - br, bh);
-  bs.lineTo(-bw + br, bh); bs.quadraticCurveTo(-bw, bh, -bw, bh - br);
-  bs.lineTo(-bw, br); bs.quadraticCurveTo(-bw, 0, -bw + br, 0);
-  const bezel = new THREE.Mesh(
-    new THREE.ExtrudeGeometry(bs, { depth: SCR_D, bevelEnabled: true, bevelThickness: SCR_BEV, bevelSize: SCR_BEV, bevelSegments: 4, curveSegments: 12 }),
-    new THREE.MeshStandardMaterial({ color: 0x1b1b1e, metalness: 0.6, roughness: 0.35 })
+  // thin brushed-metal rim, then a black glass surround, then the lit screen — each a hair higher
+  const rim = new THREE.Mesh(
+    new THREE.ExtrudeGeometry(roundedRectShape(SCR_GLASS_W + 0.07, SCR_GLASS_H + 0.07, 0.05), { depth: 0.004, bevelEnabled: false, curveSegments: 12 }),
+    new THREE.MeshStandardMaterial({ color: 0x9a9aa0, metalness: 0.75, roughness: 0.35 })
   );
-  bezel.position.z = -SCR_D;
-  screenPivot.add(bezel);
+  rim.position.z = 0.002; screenMount.add(rim);
+  const surround = new THREE.Mesh(
+    new THREE.ExtrudeGeometry(roundedRectShape(SCR_GLASS_W + 0.05, SCR_GLASS_H + 0.05, 0.04), { depth: 0.006, bevelEnabled: false, curveSegments: 12 }),
+    new THREE.MeshStandardMaterial({ color: 0x0c0c0e, metalness: 0.3, roughness: 0.18 })
+  );
+  surround.position.z = 0.002; screenMount.add(surround);
 
-  // the glass: an unlit canvas so it glows like a real display
-  const glassW = SCR_W - 0.04, glassH = glassW * 0.6;   // same 5:3 shape as the canvas
-  const sgShape = new THREE.Shape(), gw = glassW / 2, gr = 0.022;
-  sgShape.moveTo(-gw + gr, -glassH / 2); sgShape.lineTo(gw - gr, -glassH / 2); sgShape.quadraticCurveTo(gw, -glassH / 2, gw, -glassH / 2 + gr);
-  sgShape.lineTo(gw, glassH / 2 - gr); sgShape.quadraticCurveTo(gw, glassH / 2, gw - gr, glassH / 2);
-  sgShape.lineTo(-gw + gr, glassH / 2); sgShape.quadraticCurveTo(-gw, glassH / 2, -gw, glassH / 2 - gr);
-  sgShape.lineTo(-gw, -glassH / 2 + gr); sgShape.quadraticCurveTo(-gw, -glassH / 2, -gw + gr, -glassH / 2);
-  const glassGeo = new THREE.ShapeGeometry(sgShape, 12);
-  // map UVs across the glass so the canvas fills it
+  const glassGeo = new THREE.ShapeGeometry(roundedRectShape(SCR_GLASS_W, SCR_GLASS_H, 0.022), 12);
   const uv = glassGeo.attributes.uv, gp = glassGeo.attributes.position;
-  for (let k = 0; k < uv.count; k++) uv.setXY(k, gp.getX(k) / glassW + 0.5, gp.getY(k) / glassH + 0.5);
+  for (let k = 0; k < uv.count; k++) uv.setXY(k, gp.getX(k) / SCR_GLASS_W + 0.5, gp.getY(k) / SCR_GLASS_H + 0.5);
   const glass = new THREE.Mesh(glassGeo, new THREE.MeshBasicMaterial({ map: scrTex }));
-  glass.position.set(0, SCR_H / 2, SCR_BEV + 0.002);
-  screenPivot.add(glass);
-
-  // a small foot behind the display, resting on the base
-  const foot = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.16, 0.03), new THREE.MeshStandardMaterial({ color: 0x1b1b1e, metalness: 0.6, roughness: 0.35 }));
-  foot.position.set(0, 0.07, -SCR_D - SCR_BEV - 0.03);
-  foot.rotation.x = 0.85;
-  screenPivot.add(foot);
+  glass.position.z = 0.010; screenMount.add(glass);
 
   const UI_FONT = "-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Helvetica Neue', Inter, sans-serif";
   const SRC_STYLE = {
@@ -969,40 +961,32 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); ou
       g.fillStyle = "#f5f5f7"; g.fillText(pill, W - 52 - pw + 42, 89);
     }
 
-    // middle: track details, or a short line about the source
+    // album art and track name, or a short line about the source
     if (kind === "file" && player.audio) {
-      const ax = 52, ay = 172, as = 150;
-      g.save(); rrect(g, ax, ay, as, as, 20); g.clip();
+      const ax = 52, ay = 190, as = 290;
+      g.save(); g.shadowColor = "rgba(0,0,0,0.6)"; g.shadowBlur = 30; g.shadowOffsetY = 10;
+      rrect(g, ax, ay, as, as, 26); g.fillStyle = "#2c2c32"; g.fill(); g.restore();
+      g.save(); rrect(g, ax, ay, as, as, 26); g.clip();
       const img = $("artImg");
       if (!img.hidden && img.complete && img.naturalWidth) g.drawImage(img, ax, ay, as, as);
       else {
         const pg = g.createLinearGradient(ax, ay, ax + as, ay + as); pg.addColorStop(0, "#5e5e66"); pg.addColorStop(1, "#2c2c32");
-        g.fillStyle = pg; g.fillRect(ax, ay, as, as); glyph(g, "file", ax + as / 2, ay + as / 2);
+        g.fillStyle = pg; g.fillRect(ax, ay, as, as);
+        g.save(); g.translate(ax + as / 2, ay + as / 2); g.scale(2.2, 2.2); glyph(g, "file", 0, 0); g.restore();
       }
       g.restore();
-      const tx = 232, tw = W - 52 - tx;
-      g.fillStyle = "#f5f5f7"; g.font = "700 48px " + UI_FONT; g.fillText(fitLine(g, $("npTitle").textContent, tw), tx, 222);
-      g.fillStyle = "rgba(235,235,245,0.6)"; g.font = "500 32px " + UI_FONT; g.fillText(fitLine(g, $("npArtist").textContent, tw), tx, 268);
-      const a = player.audio, d = a.duration || 0, f = d ? a.currentTime / d : 0;
-      rrect(g, tx, 296, tw, 8, 4); g.fillStyle = "rgba(255,255,255,0.18)"; g.fill();
-      if (f > 0) { rrect(g, tx, 296, Math.max(8, tw * f), 8, 4); g.fillStyle = "#f5f5f7"; g.fill(); }
-      g.font = "500 24px " + UI_FONT; g.fillStyle = "rgba(235,235,245,0.6)";
-      g.fillText(fmtTime(a.currentTime), tx, 336);
-      g.textAlign = "right"; g.fillText("−" + fmtTime(d - a.currentTime), tx + tw, 336); g.textAlign = "left";
+      const tx = ax + as + 44, tw = W - 52 - tx;
+      g.fillStyle = "rgba(235,235,245,0.6)"; g.font = "600 24px " + UI_FONT; g.fillText("NOW PLAYING", tx, 300);
+      g.fillStyle = "#f5f5f7"; g.font = "700 50px " + UI_FONT;
+      // up to two lines for the title
+      const words = $("npTitle").textContent.split(/\s+/); let l1 = "", k = 0;
+      while (k < words.length && g.measureText((l1 ? l1 + " " : "") + words[k]).width <= tw) { l1 += (l1 ? " " : "") + words[k]; k++; }
+      if (!l1) { l1 = fitLine(g, words.join(" "), tw); k = words.length; }
+      g.fillText(l1, tx, 362);
+      if (k < words.length) g.fillText(fitLine(g, words.slice(k).join(" "), tw), tx, 422);
     } else {
       const line = kind === "mic" ? "Listening to your microphone" : kind === "sys" ? "Visualizing your computer's audio" : "Choose a source to start the record";
-      g.fillStyle = "#f5f5f7"; g.font = "600 40px " + UI_FONT; g.fillText(line, 52, 236);
-      g.fillStyle = "rgba(235,235,245,0.6)"; g.font = "500 28px " + UI_FONT; g.fillText("Bass at the label · treble at the rim", 52, 284);
-    }
-
-    // bottom: live level bars
-    const N = 32, bx = 52, by = 548, bwid = W - 104, gap = 8, barW = (bwid - gap * (N - 1)) / N, maxH = 150;
-    for (let k = 0; k < N; k++) {
-      let v = 0;
-      if (live) { const s = Math.floor(k * RINGS / N), e = Math.floor((k + 1) * RINGS / N); for (let i = s; i < e; i++) v = Math.max(v, bands[i]); }
-      const h = Math.max(8, Math.min(1, v * 1.4) * maxH);
-      rrect(g, bx + k * (barW + gap), by - h, barW, h, Math.min(4, barW / 2));
-      g.fillStyle = live && v > 0.02 ? st.color : "rgba(255,255,255,0.16)"; g.fill();
+      g.fillStyle = "#f5f5f7"; g.font = "600 46px " + UI_FONT; g.fillText(fitLine(g, line, W - 104), 52, 330);
     }
     scrTex.needsUpdate = true;
   }
