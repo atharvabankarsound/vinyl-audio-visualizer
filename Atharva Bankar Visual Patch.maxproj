@@ -1,5 +1,5 @@
 {
-	"name" : "Atharva_Bankar_Assesment_01",
+	"name" : "Atharva Bankar Visual Patch",
 	"version" : 1,
 	"creationdate" : 3781705233,
 	"modificationdate" : 3781705259,

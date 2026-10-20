@@ -53,7 +53,7 @@ Reference: [The Oracle – A.R. Rahman](PASTE-YOUTUBE-LINK-HERE)
 ## How to run
 
 1. Download or clone this repository.
-2. Open `Atharva_Bankar_Assesment_01.maxproj` in Max (this opens the main patch).
+2. Open `Atharva Bankar Visual Patch.maxproj` in Max (this opens the main patch).
 3. Click the **◯** button to set up the cell-shift kernel.
 4. Click the **mic** button to turn on audio input.
 5. Click the **✕** toggle to open the render window.
@@ -63,7 +63,7 @@ Reference: [The Oracle – A.R. Rahman](PASTE-YOUTUBE-LINK-HERE)
 
 ```
 vinyl-audio-visualizer/
-├── Atharva_Bankar_Assesment_01.maxproj   # Max project file – open this
+├── Atharva Bankar Visual Patch.maxproj   # Max project file – open this
 ├── patchers/
 │   ├── Atharva_Bankar_Assesment_01.maxpat   # Main visualizer patch
 │   └── FreqAnalysis.pfft.maxpat             # FFT subpatch used by pfft~ (required)
