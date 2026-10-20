@@ -7,7 +7,7 @@ A real-time audio visualizer built in Max/MSP and Jitter. It listens to the micr
 ## Inspiration
 
 Inspired by the video for *The Oracle*, a theme song by A.R. Rahman, one of my favourite musicians.
-Reference: [The Oracle – A.R. Rahman](PASTE-YOUTUBE-LINK-HERE)
+Reference: [The Oracle – A.R. Rahman](https://youtu.be/A9DI13NF7fY)
 
 ## Screenshots
 
