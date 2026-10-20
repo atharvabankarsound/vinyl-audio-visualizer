@@ -6,15 +6,26 @@ A real-time audio visualizer built in Max/MSP and Jitter. It listens to the micr
 
 ## Web version
 
-There is also a browser version of the visualizer in [`docs/index.html`](docs/index.html), built with Three.js and the Web Audio API. It draws 48 frequency "grooves" (40 Hz at the label to 16 kHz at the rim) on a spinning 3D record with a tonearm, and can listen to:
+There is also a browser version of the visualizer in [`docs/index.html`](docs/index.html), built with Three.js and the Web Audio API.
+
+**Live site:** https://atharvabankarsound.github.io/vinyl-audio-visualizer/
+
+It works the same way as the Max patch: each moment's spectrum is written into the record under the needle, and the spinning record carries that history round, so tall peaks rise from the surface and travel with the vinyl. 96 grooves run from 30 Hz at the label to 16 kHz at the rim, and with no sound the grooves stay flat.
+
+**Sound sources**
 
 - **Microphone** – live input
-- **Uploaded track** – any audio file, or drag one onto the record
-- **Computer audio** – share a browser tab with sound, or your whole screen with system audio (Windows, Chrome/Edge)
+- **Track** – upload one or more audio files (or drop them on the page) to play as a queue
+- **Computer Audio** – share a browser tab with sound, or your whole screen with system audio (Windows, Chrome/Edge)
 
-Platter speed (Hold, 16⅔, 33⅓, 45, 78 rpm) and groove depth can be changed, and you can drag to tilt the view. With no sound the grooves stay flat, like the Max patch.
+**Features**
 
-**Live site:** https://atharvabankarsound.github.io/vinyl-audio-visualizer/ (once GitHub Pages is switched on: Settings → Pages → Deploy from a branch → `main` / `/docs`).
+- 3D turntable with a graphite base, metal platter and a tonearm mounted on the base
+- Mini display on the base showing the input type, track title, artist, album art, progress and live level bars
+- Apple Music style Now Playing bar with album art and title/artist read from MP3, FLAC and M4A files, a scrubber and volume
+- Platter speed (Hold, 16⅔, 33⅓, 45, 78 rpm), wave height and zoom controls
+- Drag to rotate; scroll, pinch or use the slider to zoom
+- Frosted-glass interface in an Apple-inspired style
 
 ## Inspiration
 
