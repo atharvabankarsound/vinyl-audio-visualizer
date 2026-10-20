@@ -43,6 +43,8 @@ Reference: [The Oracle – A.R. Rahman](PASTE-YOUTUBE-LINK-HERE)
 | SPEED slider | Fast ↔ slow update rate of the vinyl |
 | Frequencies / Levels / Meter | Live monitors of the input signal |
 
+> **Note:** The patch in this repository is an earlier save. The screenshots show the final version, which adds the SPEED slider (`speedlim`), labels, the needle meter and the presentation-mode layout. The core visualizer (FFT analysis, spectrum history, cell shift and 3D vinyl rendering) is the same.
+
 ## Requirements
 
 - Max 8.1 or later (built with Max 8.1.11)
