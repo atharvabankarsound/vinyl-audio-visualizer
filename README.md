@@ -4,6 +4,18 @@ A real-time audio visualizer built in Max/MSP and Jitter. It listens to the micr
 
 ![Visualizer in action](screenshots/visualizer-in-action.png)
 
+## Web version
+
+There is also a browser version of the visualizer in [`docs/index.html`](docs/index.html), built with Three.js and the Web Audio API. It draws 48 frequency "grooves" (40 Hz at the label to 16 kHz at the rim) on a spinning 3D record with a tonearm, and can listen to:
+
+- **Microphone** – live input
+- **Uploaded track** – any audio file, or drag one onto the record
+- **Computer audio** – share a browser tab with sound, or your whole screen with system audio (Windows, Chrome/Edge)
+
+Platter speed (Hold, 16⅔, 33⅓, 45, 78 rpm) and groove depth can be changed, and you can drag to tilt the view. With no sound the grooves stay flat, like the Max patch.
+
+**Live site:** https://atharvabankarsound.github.io/vinyl-audio-visualizer/ (once GitHub Pages is switched on: Settings → Pages → Deploy from a branch → `main` / `/docs`).
+
 ## Inspiration
 
 Inspired by the video for *The Oracle*, a theme song by A.R. Rahman, one of my favourite musicians.
@@ -68,6 +80,8 @@ vinyl-audio-visualizer/
 │   ├── Atharva_Bankar_Assesment_01.maxpat   # Main visualizer patch
 │   └── FreqAnalysis.pfft.maxpat             # FFT subpatch used by pfft~ (required)
 ├── screenshots/                             # Patch and presentation-mode images
+├── docs/
+│   └── index.html                           # Web version (served by GitHub Pages)
 └── README.md
 ```
 

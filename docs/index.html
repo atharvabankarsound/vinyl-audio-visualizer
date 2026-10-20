@@ -1,0 +1,657 @@
+<title>Vinyl Audio Visualizer</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Syne:wght@600;800&family=Manrope:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: listening-room console. A control strip on the left, the turntable stage fills the rest; stacks on phones. */
+:root {
+  --plinth: #15120f;        /* walnut-black room */
+  --panel: #1e1a16;
+  --line: #3a322a;
+  --ink: #ece3d6;
+  --ink-dim: #a99c8b;
+  --brass: #d1a85e;          /* accent: tonearm brass */
+  --low: #e98a3c;            /* bass rings, centre */
+  --mid: #5fb8a8;
+  --high: #9a8cf0;           /* treble rings, edge */
+  --warn: #f0b86a;
+  --f-display: "Syne", "Avenir Next", "Segoe UI", sans-serif;
+  --f-body: "Manrope", "Segoe UI", system-ui, sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  color-scheme: dark;
+}
+html, body { height: 100%; }
+body {
+  background: var(--plinth);
+  color: var(--ink);
+  font-family: var(--f-body);
+  font-size: 14px;
+  line-height: 1.5;
+}
+.app {
+  display: grid;
+  grid-template-columns: 320px minmax(0, 1fr);
+  gap: 16px;
+  height: 100%;
+  padding-block: 16px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  box-sizing: border-box;
+}
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-width: 0;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+header .eyebrow {
+  font-family: var(--f-mono);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--brass);
+  margin: 0 0 6px;
+}
+h1 {
+  font-family: var(--f-display);
+  font-weight: 800;
+  font-size: 30px;
+  line-height: 1.02;
+  margin: 0;
+  text-wrap: balance;
+}
+header p { margin: 10px 0 0; color: var(--ink-dim); max-width: 34ch; }
+
+.group { display: flex; flex-direction: column; gap: 8px; }
+.label {
+  font-family: var(--f-mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+}
+.sources { display: grid; gap: 6px; }
+.src {
+  display: grid;
+  grid-template-columns: 28px 1fr;
+  align-items: center;
+  gap: 10px;
+  text-align: left;
+  font: inherit;
+  color: var(--ink);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 10px 12px;
+  cursor: pointer;
+}
+.src:hover { border-color: var(--brass); }
+.src:focus-visible, .chip:focus-visible, button:focus-visible, input:focus-visible {
+  outline: 2px solid var(--brass); outline-offset: 2px;
+}
+.src[aria-pressed="true"] { border-color: var(--brass); background: #2a231b; }
+.src svg { width: 22px; height: 22px; stroke: var(--brass); fill: none; stroke-width: 1.6; }
+.src strong { display: block; font-weight: 600; }
+.src span span { display: block; font-size: 12px; color: var(--ink-dim); }
+
+.status {
+  font-size: 13px;
+  color: var(--ink-dim);
+  min-height: 1.5em;
+}
+.status.warn { color: var(--warn); }
+
+.transport {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 10px;
+  align-items: center;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 10px 12px;
+}
+.transport button {
+  width: 34px; height: 34px; border-radius: 50%;
+  border: 1px solid var(--brass); background: transparent; color: var(--brass);
+  cursor: pointer; font-size: 13px;
+}
+.track { min-width: 0; }
+.track-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
+.bar { height: 3px; background: var(--line); border-radius: 2px; margin-top: 6px; overflow: hidden; }
+.bar i { display: block; height: 100%; width: 0; background: var(--brass); }
+
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip {
+  font-family: var(--f-mono);
+  font-size: 12px;
+  color: var(--ink);
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 5px 12px;
+  cursor: pointer;
+}
+.chip[aria-pressed="true"] { border-color: var(--brass); color: var(--brass); }
+
+input[type="range"] { width: 100%; accent-color: var(--brass); }
+
+.readouts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px;
+  background: var(--line);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.readouts div { background: var(--panel); padding: 10px 12px; }
+.readouts b {
+  display: block;
+  font-family: var(--f-mono);
+  font-weight: 500;
+  font-size: 18px;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+.readouts small { color: var(--ink-dim); font-size: 11px; }
+
+.legend .grad {
+  height: 8px; border-radius: 4px;
+  background: linear-gradient(90deg, var(--low), var(--mid), var(--high));
+}
+.legend .ticks {
+  display: flex; justify-content: space-between;
+  font-family: var(--f-mono); font-size: 11px; color: var(--ink-dim);
+  font-variant-numeric: tabular-nums;
+}
+.credit { font-size: 12px; color: var(--ink-dim); margin-top: auto; }
+
+.stage {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  overflow: hidden;
+  background: radial-gradient(120% 90% at 50% 35%, #2a221b 0%, var(--plinth) 70%);
+  touch-action: none;
+  cursor: grab;
+}
+.stage.drop { outline: 2px dashed var(--brass); outline-offset: -8px; }
+.stage canvas { display: block; width: 100%; height: 100%; }
+.stage-tag {
+  position: absolute; left: 14px; bottom: 12px;
+  font-family: var(--f-mono); font-size: 11px; letter-spacing: 0.08em;
+  color: var(--ink-dim); text-transform: uppercase; pointer-events: none;
+}
+.stage-tag em { font-style: normal; color: var(--brass); }
+
+@media (max-width: 760px) {
+  html, body { height: auto; }
+  .app { grid-template-columns: minmax(0, 1fr); height: auto; }
+  .stage { order: -1; height: 62vh; min-height: 320px; }
+  .panel { overflow: visible; }
+  h1 { font-size: 26px; }
+}
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto; } }
+</style>
+
+<div class="app">
+  <aside class="panel">
+    <header>
+      <p class="eyebrow">Atharva Bankar · Visual Patch</p>
+      <h1>Vinyl Audio Visualizer</h1>
+      <p>Sound drawn as grooves on a spinning record. Bass sits near the label, treble out at the rim.</p>
+    </header>
+
+    <div class="group">
+      <div class="label" id="srcLabel">Sound source</div>
+      <div class="sources" role="group" aria-labelledby="srcLabel">
+        <button class="src" id="btnMic" aria-pressed="false">
+          <svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>
+          <span><strong>Microphone</strong><span>Live input from your mic</span></span>
+        </button>
+        <button class="src" id="btnFile" aria-pressed="false">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2.5"/><path d="M12 3v3"/></svg>
+          <span><strong>Upload a track</strong><span>MP3, WAV, FLAC… or drop it on the record</span></span>
+        </button>
+        <button class="src" id="btnSys" aria-pressed="false">
+          <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="1.5"/><path d="M8 20h8M12 16v4"/></svg>
+          <span><strong>Computer audio</strong><span>Share a tab or your screen with sound</span></span>
+        </button>
+      </div>
+      <input type="file" id="fileInput" accept="audio/*" hidden>
+      <div class="status" id="status" role="status">No input. Pick a source to drop the needle.</div>
+    </div>
+
+    <div class="transport" id="transport" hidden>
+      <button id="btnPlay" aria-label="Pause">❚❚</button>
+      <div class="track">
+        <div class="track-name" id="trackName">—</div>
+        <div class="bar"><i id="trackBar"></i></div>
+      </div>
+    </div>
+
+    <div class="group">
+      <div class="label" id="rpmLabel">Platter speed</div>
+      <div class="chips" role="group" aria-labelledby="rpmLabel" id="rpmChips">
+        <button class="chip" data-rpm="0" aria-pressed="false">Hold</button>
+        <button class="chip" data-rpm="16.667" aria-pressed="false">16⅔</button>
+        <button class="chip" data-rpm="33.333" aria-pressed="true">33⅓</button>
+        <button class="chip" data-rpm="45" aria-pressed="false">45</button>
+        <button class="chip" data-rpm="78" aria-pressed="false">78</button>
+      </div>
+    </div>
+
+    <div class="group">
+      <label class="label" for="gain">Groove depth</label>
+      <input type="range" id="gain" min="0.3" max="3" step="0.05" value="1.2">
+    </div>
+
+    <div class="readouts" aria-live="off">
+      <div><small>Level</small><b id="roLevel">−∞ dB</b></div>
+      <div><small>Loudest band</small><b id="roBand">— Hz</b></div>
+    </div>
+
+    <div class="group legend">
+      <div class="label">48 grooves · label to rim</div>
+      <div class="grad"></div>
+      <div class="ticks"><span>40 Hz</span><span>250</span><span>1.6k</span><span>16 kHz</span></div>
+    </div>
+
+    <p class="credit">Web edition of a Max/MSP/Jitter patch. Inspired by A.R. Rahman's <i>The Oracle</i>. Drag the record to change the angle.</p>
+  </aside>
+
+  <main class="stage" id="stage">
+    <div class="stage-tag" id="stageTag">Side A · <em id="rpmTag">33⅓ rpm</em></div>
+  </main>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const stage = $("stage");
+  const statusEl = $("status");
+  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  // ---------- Audio ----------
+  const RINGS = 48, PTS = 256, F_LO = 40, F_HI = 16000;
+  let ctx = null, analyser = null, freqData = null, timeData = null;
+  let current = { kind: null, node: null, stream: null, audio: null, url: null };
+
+  function ensureCtx() {
+    if (!ctx) {
+      ctx = new (window.AudioContext || window.webkitAudioContext)();
+      analyser = ctx.createAnalyser();
+      analyser.fftSize = 4096;
+      analyser.smoothingTimeConstant = 0.72;
+      freqData = new Uint8Array(analyser.frequencyBinCount);
+      timeData = new Float32Array(analyser.fftSize);
+    }
+    if (ctx.state === "suspended") ctx.resume();
+    return ctx;
+  }
+
+  function setStatus(msg, warn) {
+    statusEl.textContent = msg;
+    statusEl.classList.toggle("warn", !!warn);
+  }
+  function markSource(kind, detail) {
+    [["mic", "btnMic"], ["file", "btnFile"], ["sys", "btnSys"]].forEach(([k, id]) =>
+      $(id).setAttribute("aria-pressed", String(k === kind)));
+  }
+
+  function stopCurrent() {
+    try { current.node && current.node.disconnect(); } catch (e) {}
+    if (current.stream) current.stream.getTracks().forEach(t => t.stop());
+    if (current.audio) { current.audio.pause(); }
+    if (current.url) URL.revokeObjectURL(current.url);
+    try { analyser && analyser.disconnect(); } catch (e) {}
+    current = { kind: null, node: null, stream: null, audio: null, url: null };
+    $("transport").hidden = true;
+    markSource(null);
+  }
+
+  async function useMic() {
+    ensureCtx();
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      return setStatus("This browser can't open a microphone here. Try opening the page from your computer or GitHub Pages.", true);
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false }
+      });
+      stopCurrent();
+      const node = ctx.createMediaStreamSource(stream);
+      node.connect(analyser);                    // not to speakers, so no feedback
+      current = { kind: "mic", node, stream };
+      markSource("mic");
+      setStatus("Listening to your microphone.");
+    } catch (err) {
+      setStatus(err && err.name === "NotAllowedError"
+        ? "Microphone access was blocked. Allow it in the browser's address bar, or open this page from your own computer or GitHub Pages (the Claude preview doesn't allow mics)."
+        : "Couldn't open a microphone: " + (err && err.message ? err.message : "unknown error") + ".", true);
+    }
+  }
+
+  async function useSystem() {
+    ensureCtx();
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
+      return setStatus("Sharing computer audio needs desktop Chrome or Edge, opened outside the Claude preview.", true);
+    }
+    try {
+      const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
+      const audioTracks = stream.getAudioTracks();
+      stream.getVideoTracks().forEach(t => t.stop());   // only the sound is needed
+      if (!audioTracks.length) {
+        stream.getTracks().forEach(t => t.stop());
+        return setStatus("No sound was shared. In the share dialog, pick a tab and switch on “Share tab audio”, or share your entire screen with “Share system audio” (Windows).", true);
+      }
+      stopCurrent();
+      const audioOnly = new MediaStream(audioTracks);
+      const node = ctx.createMediaStreamSource(audioOnly);
+      node.connect(analyser);
+      audioTracks[0].addEventListener("ended", () => {
+        if (current.kind === "sys") { stopCurrent(); setStatus("Audio sharing stopped. No input."); }
+      });
+      current = { kind: "sys", node, stream: audioOnly };
+      markSource("sys");
+      setStatus("Visualizing shared computer audio.");
+    } catch (err) {
+      setStatus(err && err.name === "NotAllowedError"
+        ? "Sharing was cancelled or blocked. The Claude preview doesn't allow it; open the page from your computer or GitHub Pages."
+        : "Couldn't capture computer audio: " + (err && err.message ? err.message : "unknown error") + ".", true);
+    }
+  }
+
+  function useFile(file) {
+    if (!file) return;
+    if (file.type && !file.type.startsWith("audio/")) {
+      return setStatus("That file isn't audio. Choose an MP3, WAV, FLAC, OGG or M4A file.", true);
+    }
+    ensureCtx();
+    stopCurrent();
+    const url = URL.createObjectURL(file);
+    const audio = new Audio();
+    audio.src = url;
+    audio.loop = true;
+    const node = ctx.createMediaElementSource(audio);
+    node.connect(analyser);
+    analyser.connect(ctx.destination);
+    current = { kind: "file", node, audio, url };
+    const trackTitle = file.name.replace(/\.[^.]+$/, "");
+    markSource("file", trackTitle);
+    $("trackName").textContent = trackTitle;
+    $("transport").hidden = false;
+    audio.play().then(() => {
+      setStatus("Playing your track on loop.");
+      setPlayBtn(true);
+    }).catch(() => {
+      setStatus("Couldn't play that file. It may be in a format this browser doesn't support.", true);
+    });
+  }
+
+  function setPlayBtn(playing) {
+    const b = $("btnPlay");
+    b.textContent = playing ? "❚❚" : "▶";
+    b.setAttribute("aria-label", playing ? "Pause" : "Play");
+  }
+  $("btnPlay").addEventListener("click", () => {
+    const a = current.audio; if (!a) return;
+    ensureCtx();
+    if (a.paused) { a.play(); setPlayBtn(true); } else { a.pause(); setPlayBtn(false); }
+  });
+
+  $("btnMic").addEventListener("click", useMic);
+  $("btnSys").addEventListener("click", useSystem);
+  $("btnFile").addEventListener("click", () => $("fileInput").click());
+  $("fileInput").addEventListener("change", (e) => { useFile(e.target.files[0]); e.target.value = ""; });
+
+  ["dragenter", "dragover"].forEach(ev => stage.addEventListener(ev, (e) => { e.preventDefault(); stage.classList.add("drop"); }));
+  ["dragleave", "drop"].forEach(ev => stage.addEventListener(ev, (e) => { e.preventDefault(); stage.classList.remove("drop"); }));
+  stage.addEventListener("drop", (e) => { const f = e.dataTransfer.files[0]; if (f) useFile(f); });
+
+  // ---------- Controls ----------
+  let rpm = reduceMotion ? 0 : 33.333;
+  const rpmNames = { "0": "Holding", "16.667": "16⅔ rpm", "33.333": "33⅓ rpm", "45": "45 rpm", "78": "78 rpm" };
+  function setRpm(v) {
+    rpm = parseFloat(v);
+    document.querySelectorAll("#rpmChips .chip").forEach(c =>
+      c.setAttribute("aria-pressed", String(parseFloat(c.dataset.rpm) === rpm)));
+    $("rpmTag").textContent = rpmNames[String(v)] || (v + " rpm");
+  }
+  document.querySelectorAll("#rpmChips .chip").forEach(c => c.addEventListener("click", () => setRpm(c.dataset.rpm)));
+  setRpm(reduceMotion ? "0" : "33.333");
+
+  let gain = 1.2;
+  $("gain").addEventListener("input", (e) => { gain = parseFloat(e.target.value); });
+
+  // ---------- Band layout: ring i covers a log-spaced slice of 40 Hz – 16 kHz ----------
+  const bandEdges = [];
+  for (let i = 0; i <= RINGS; i++) bandEdges.push(F_LO * Math.pow(F_HI / F_LO, i / RINGS));
+  const energy = new Float32Array(RINGS);
+
+  function readBands() {
+    analyser.getByteFrequencyData(freqData);
+    analyser.getFloatTimeDomainData(timeData);
+    const nyq = ctx.sampleRate / 2, n = freqData.length;
+    let best = 0, bestI = 0;
+    for (let i = 0; i < RINGS; i++) {
+      let a = Math.floor(bandEdges[i] / nyq * n), b = Math.ceil(bandEdges[i + 1] / nyq * n);
+      if (b <= a) b = a + 1;
+      let s = 0; for (let k = a; k < b && k < n; k++) s += freqData[k];
+      let v = (s / (b - a)) / 255;
+      v = Math.max(0, v - 0.04) / 0.96;           // small noise gate so silence stays flat
+      v *= 1 + (i / RINGS) * 1.4;               // lift the naturally quieter highs
+      energy[i] += (Math.min(v, 1.2) - energy[i]) * 0.35;
+      if (v > best) { best = v; bestI = i; }
+    }
+    let rms = 0; for (let k = 0; k < timeData.length; k++) rms += timeData[k] * timeData[k];
+    rms = Math.sqrt(rms / timeData.length);
+    const db = rms > 1e-5 ? 20 * Math.log10(rms) : -Infinity;
+    return { db, band: best > 0.05 ? Math.sqrt(bandEdges[bestI] * bandEdges[bestI + 1]) : null };
+  }
+
+  // ---------- Three.js scene ----------
+  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  stage.prepend(renderer.domElement);
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 20);
+
+  scene.add(new THREE.AmbientLight(0xfff1dc, 0.45));
+  const key = new THREE.DirectionalLight(0xffe2b8, 0.9); key.position.set(1.5, 3, 1.2); scene.add(key);
+  const rim = new THREE.PointLight(0x9a8cf0, 0.6, 6); rim.position.set(-1.6, 0.8, -1.2); scene.add(rim);
+
+  // plinth: the fixed matte grey base everything stands on
+  const PLINTH_TOP = -0.08;
+  const plinth = new THREE.Mesh(
+    new THREE.BoxGeometry(3.2, 0.14, 2.7),
+    new THREE.MeshStandardMaterial({ color: 0x6e6f72, metalness: 0, roughness: 1 })
+  );
+  plinth.position.set(0.2, PLINTH_TOP - 0.07, 0); scene.add(plinth);
+
+  // platter + record (small gaps between layers so surfaces never overlap)
+  const platter = new THREE.Mesh(
+    new THREE.CylinderGeometry(1.14, 1.14, 0.06, 96),
+    new THREE.MeshStandardMaterial({ color: 0x3c3d40, metalness: 0, roughness: 0.95 })
+  );
+  platter.position.y = PLINTH_TOP + 0.002 + 0.03; scene.add(platter);   // top at -0.018
+
+  const record = new THREE.Group(); scene.add(record);
+  const disc = new THREE.Mesh(
+    new THREE.CylinderGeometry(1.06, 1.06, 0.016, 128),
+    new THREE.MeshStandardMaterial({ color: 0x0c0b0a, metalness: 0.35, roughness: 0.32 })
+  );
+  disc.position.y = -0.008; record.add(disc);                           // spans -0.016 to 0
+
+  // label: spins with the record
+  const lc = document.createElement("canvas"); lc.width = lc.height = 512;
+  const lg = lc.getContext("2d");
+  function paintLabel() {
+    lg.clearRect(0, 0, 512, 512);
+    lg.fillStyle = "#d1a85e"; lg.beginPath(); lg.arc(256, 256, 256, 0, Math.PI * 2); lg.fill();
+    lg.strokeStyle = "rgba(21,18,15,0.55)"; lg.lineWidth = 3;
+    lg.beginPath(); lg.arc(256, 256, 236, 0, Math.PI * 2); lg.stroke();
+    lg.fillStyle = "#15120f"; lg.textAlign = "center";
+    lg.font = "800 46px Syne, sans-serif"; lg.fillText("ATHARVA", 256, 200); lg.fillText("BANKAR", 256, 248);
+    lg.font = "500 22px 'IBM Plex Mono', monospace";
+    lg.fillText("VISUAL PATCH · SIDE A", 256, 330); lg.fillText("STEREO  ·  33⅓", 256, 362);
+    lg.beginPath(); lg.arc(256, 256, 14, 0, Math.PI * 2); lg.fill();
+  }
+  paintLabel();
+  const labelTex = new THREE.CanvasTexture(lc);
+  const label = new THREE.Mesh(
+    new THREE.CircleGeometry(0.32, 64),
+    new THREE.MeshStandardMaterial({ map: labelTex, roughness: 0.8, metalness: 0.1 })
+  );
+  label.rotation.x = -Math.PI / 2; label.position.y = 0.003; record.add(label);
+  if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(() => { paintLabel(); labelTex.needsUpdate = true; });
+  }
+
+  // spindle
+  const spindle = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.06, 16),
+    new THREE.MeshStandardMaterial({ color: 0xc9c2b6, metalness: 0.9, roughness: 0.2 }));
+  spindle.position.y = 0.02; scene.add(spindle);
+
+  // grooves: one line loop per frequency band
+  const cLow = new THREE.Color(0xe98a3c), cMid = new THREE.Color(0x5fb8a8), cHigh = new THREE.Color(0x9a8cf0);
+  const rings = [];
+  for (let i = 0; i < RINGS; i++) {
+    const t = i / (RINGS - 1);
+    const base = t < 0.5 ? cLow.clone().lerp(cMid, t * 2) : cMid.clone().lerp(cHigh, (t - 0.5) * 2);
+    const geo = new THREE.BufferGeometry();
+    const pos = new Float32Array(PTS * 3), col = new Float32Array(PTS * 3);
+    geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+    geo.setAttribute("color", new THREE.BufferAttribute(col, 3));
+    const line = new THREE.LineLoop(geo, new THREE.LineBasicMaterial({
+      vertexColors: true, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending, depthWrite: false
+    }));
+    record.add(line);
+    rings.push({ line, pos, col, base, r: 0.36 + t * 0.64, offset: (i * 397) % 1500 });
+  }
+
+  // tonearm: bolted to the plinth (not the record), stylus resting in an outer groove
+  const brass = new THREE.MeshStandardMaterial({ color: 0xd1a85e, metalness: 0.85, roughness: 0.3 });
+  const darkMetal = new THREE.MeshStandardMaterial({ color: 0x3a332c, metalness: 0.7, roughness: 0.4 });
+  const PIVOT = { x: 1.38, z: -0.8 }, STYLUS = { x: 0.6, z: 0.5 };
+  const dx = STYLUS.x - PIVOT.x, dz = STYLUS.z - PIVOT.z;
+  const ARM_LEN = Math.hypot(dx, dz), ARM_Y = 0.1;
+
+  const armBase = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.18, 0.03, 40), darkMetal);
+  armBase.position.set(PIVOT.x, PLINTH_TOP + 0.017, PIVOT.z); scene.add(armBase);
+  const post = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.075, ARM_Y - PLINTH_TOP, 32), brass);
+  post.position.set(PIVOT.x, (ARM_Y + PLINTH_TOP) / 2, PIVOT.z); scene.add(post);
+
+  const arm = new THREE.Group(); arm.position.set(PIVOT.x, ARM_Y, PIVOT.z); scene.add(arm);
+  arm.rotation.y = Math.atan2(dz, -dx);           // aim the arm's local -X at the stylus point
+  const gimbal = new THREE.Mesh(new THREE.SphereGeometry(0.05, 24, 16), brass); arm.add(gimbal);
+  const tube = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, ARM_LEN, 16), brass);
+  tube.rotation.z = Math.PI / 2; tube.position.set(-ARM_LEN / 2, 0, 0); arm.add(tube);
+  const weight = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.1, 24), darkMetal);
+  weight.rotation.z = Math.PI / 2; weight.position.set(0.14, 0, 0); arm.add(weight);
+  const stub = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, 0.12, 12), brass);
+  stub.rotation.z = Math.PI / 2; stub.position.set(0.06, 0, 0); arm.add(stub);
+  const head = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.025, 0.07), brass);
+  head.position.set(-ARM_LEN, -0.045, 0); arm.add(head);
+  const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.05, 10), brass);
+  neck.position.set(-ARM_LEN + 0.03, -0.022, 0); arm.add(neck);
+  const cart = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.035, 0.04), darkMetal);
+  cart.position.set(-ARM_LEN, -0.073, 0); arm.add(cart);
+  const stylus = new THREE.Mesh(new THREE.ConeGeometry(0.006, 0.01, 8), brass);
+  stylus.rotation.x = Math.PI; stylus.position.set(-ARM_LEN, -ARM_Y + 0.005, 0); arm.add(stylus);
+
+  // arm rest on the plinth
+  const rest = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.02, 0.12, 12), darkMetal);
+  rest.position.set(1.55, PLINTH_TOP + 0.062, 0.55); scene.add(rest);
+
+  // camera orbit (drag)
+  let theta = 0.0, phi = 0.95, radius = 3.0;
+  let dragging = false, lx = 0, ly = 0;
+  stage.addEventListener("pointerdown", (e) => { dragging = true; lx = e.clientX; ly = e.clientY; stage.setPointerCapture(e.pointerId); stage.style.cursor = "grabbing"; });
+  stage.addEventListener("pointermove", (e) => {
+    if (!dragging) return;
+    theta -= (e.clientX - lx) * 0.006; phi -= (e.clientY - ly) * 0.005;
+    phi = Math.max(0.25, Math.min(1.45, phi)); lx = e.clientX; ly = e.clientY;
+  });
+  const endDrag = () => { dragging = false; stage.style.cursor = "grab"; };
+  stage.addEventListener("pointerup", endDrag); stage.addEventListener("pointercancel", endDrag);
+
+  function placeCamera() {
+    camera.position.set(radius * Math.sin(phi) * Math.sin(theta), radius * Math.cos(phi), radius * Math.sin(phi) * Math.cos(theta));
+    camera.lookAt(0, 0, 0);
+  }
+
+  function resize() {
+    const w = stage.clientWidth, h = stage.clientHeight;
+    if (!w || !h) return;
+    renderer.setSize(w, h, false);
+    camera.aspect = w / h;
+    radius = w / h < 0.9 ? 4.4 : 3.4;           // pull back on tall phone screens
+    camera.updateProjectionMatrix();
+  }
+  new ResizeObserver(resize).observe(stage); resize();
+
+  // ---------- Frame loop ----------
+  const idleWave = new Float32Array(2048);
+  let last = performance.now(), roTimer = 0;
+  function frame(now) {
+    const dt = Math.min(0.05, (now - last) / 1000); last = now;
+    const t = now / 1000;
+    const live = !!(current.kind && analyser && ctx && ctx.state === "running");
+    let wave = timeData, ro = null;
+
+    if (live) {
+      ro = readBands();
+    } else {
+      // no input: grooves settle flat, like the original patch
+      for (let i = 0; i < RINGS; i++) energy[i] *= 0.85;
+      wave = idleWave;                            // all zeros
+    }
+
+    const step = Math.max(1, Math.floor((wave.length - PTS) / PTS * 0.5)) || 1;
+    for (let i = 0; i < RINGS; i++) {
+      const R = rings[i], e = energy[i] * gain;
+      for (let j = 0; j < PTS; j++) {
+        const a = (j / PTS) * Math.PI * 2;
+        const w = (wave[(R.offset + j * step) % wave.length] || 0) * Math.pow(Math.sin(Math.PI * j / PTS), 0.35);
+        const r = R.r + e * 0.012 * w;
+        const y = e * (0.025 + 0.16 * w);
+        R.pos[j * 3] = Math.cos(a) * r;
+        R.pos[j * 3 + 1] = Math.max(-0.004, y);
+        R.pos[j * 3 + 2] = Math.sin(a) * r;
+        const b = 0.18 + Math.min(1.2, e) * 0.85;
+        R.col[j * 3] = R.base.r * b; R.col[j * 3 + 1] = R.base.g * b; R.col[j * 3 + 2] = R.base.b * b;
+      }
+      R.line.geometry.attributes.position.needsUpdate = true;
+      R.line.geometry.attributes.color.needsUpdate = true;
+    }
+
+    record.rotation.y -= (rpm / 60) * Math.PI * 2 * dt;
+    if (!dragging && !reduceMotion) theta += dt * 0.02;
+    placeCamera();
+    renderer.render(scene, camera);
+
+    if (current.audio && current.audio.duration) {
+      $("trackBar").style.width = (100 * current.audio.currentTime / current.audio.duration).toFixed(1) + "%";
+    }
+    roTimer += dt;
+    if (roTimer > 0.12) {
+      roTimer = 0;
+      if (ro) {
+        $("roLevel").textContent = isFinite(ro.db) ? ro.db.toFixed(1) + " dB" : "−∞ dB";
+        $("roBand").textContent = ro.band ? (ro.band >= 1000 ? (ro.band / 1000).toFixed(1) + " kHz" : Math.round(ro.band) + " Hz") : "— Hz";
+      } else {
+        $("roLevel").textContent = "−∞ dB"; $("roBand").textContent = "— Hz";
+      }
+    }
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+})();
+</script>
