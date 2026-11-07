@@ -1089,7 +1089,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); ou
       R.line.geometry.attributes.color.needsUpdate = true;
     }
 
-    if (!pointers.size && !reduceMotion) theta += dt * 0.025;
+    // camera stays still unless the viewer drags it
     placeCamera();
     renderer.render(scene, camera);
 
